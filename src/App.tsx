@@ -1,12 +1,15 @@
 import { PatientList } from "./PatientList";
 import "./index.css";
 
+export { PatientList } from "./PatientList";
+export { PatientForm } from "./PatientForm";
+export * from "./fhirPatient";
+
 export function App() {
   return (
-    <div className="app">
-      <h1>FHIR Patient App</h1>
+    <main className="app">
       <PatientList />
-    </div>
+    </main>
   );
 }
 
