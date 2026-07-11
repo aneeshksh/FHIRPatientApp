@@ -1,21 +1,28 @@
-# bun-react-template
+# FHIR Patient App
 
-To install dependencies:
+A patient listing module that proxies FHIR requests and displays patients from a configured FHIR server.
+
+## Setup
 
 ```bash
 bun install
 ```
 
-To start a development server:
+Create a `.env` file:
+
+```
+FHIR_BASE_URL=https://your-fhir-server/fhir/tenant-id
+FHIR_BEARER_TOKEN=your-token
+```
+
+## Development
 
 ```bash
 bun dev
 ```
 
-To run for production:
+## Production
 
 ```bash
 bun start
 ```
-
-This project was created using `bun init` in bun v1.3.14. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.

@@ -13,28 +13,6 @@ if (!FHIR_BASE_URL || !FHIR_BEARER_TOKEN) {
 
 const server = serve({
   routes: {
-    "/api/hello": {
-      async GET(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "GET",
-        });
-      },
-      async PUT(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "PUT",
-        });
-      },
-    },
-
-    "/api/hello/:name": async req => {
-      const name = req.params.name;
-      return Response.json({
-        message: `Hello, ${name}!`,
-      });
-    },
-
     "/fhir/*": async req => {
       const url = new URL(req.url);
       const targetPath = url.pathname.replace("/fhir", "");
@@ -59,17 +37,13 @@ const server = serve({
       });
     },
 
-    // Serve index.html for all unmatched routes.
     "/*": index,
   },
 
   development: process.env.NODE_ENV !== "production" && {
-    // Enable browser hot reloading in development
     hmr: true,
-
-    // Echo console logs from the browser to the server
     console: true,
   },
 });
 
-console.log(`🚀 Server running at ${server.url}`);
+console.log(`Server running at ${server.url}`);
