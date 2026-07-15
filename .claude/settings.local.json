@@ -4,7 +4,15 @@
       "Bash(bun add *)",
       "Bash(bun run *)",
       "Bash(./node_modules/.bin/tsc --noEmit)",
-      "Bash(bun x *)"
+      "Bash(bun x *)",
+      "Read(//c/Users/Aneesh/AppData/Local/Temp/claude/D--Dev-FHIRPatientApp/366858a8-803b-4522-90e2-2cb0b8b784b9/scratchpad/**)",
+      "Bash(node *)",
+      "Bash(curl -s http://localhost:3000/ -o /dev/null -w \"index: %{http_code}\\\\n\")",
+      "Bash(curl -s \"http://localhost:3000/patient/2c167999-289d-95fa-5c27-7d8b8d35348c\" -o /dev/null -w \"detail route \\(server-rendered index\\): %{http_code}\\\\n\")",
+      "Bash(curl -s \"http://localhost:3000/fhir/Patient/2c167999-289d-95fa-5c27-7d8b8d35348c\")",
+      "Bash(curl -s \"http://localhost:3000/fhir/Observation?patient=2c167999-289d-95fa-5c27-7d8b8d35348c&category=vital-signs&_count=5\" -o /dev/null -w \"observation proxy: %{http_code}\\\\n\")",
+      "Bash(curl *)",
+      "Bash(bun -e \"console.log\\(process.argv\\)\" -- a b c)"
     ]
   }
 }

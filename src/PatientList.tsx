@@ -9,7 +9,11 @@ import {
   type Patient,
 } from "./fhirPatient";
 
-export function PatientList() {
+type PatientListProps = {
+  onSelectPatient: (id: string) => void;
+};
+
+export function PatientList({ onSelectPatient }: PatientListProps) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -182,7 +186,15 @@ export function PatientList() {
             <tbody>
               {patients.map(patient => (
                 <tr key={patient.id}>
-                  <td>{formatName(patient.name)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="patient-name-link"
+                      onClick={() => patient.id && onSelectPatient(patient.id)}
+                    >
+                      {formatName(patient.name)}
+                    </button>
+                  </td>
                   <td>{formatBirthDate(patient.birthDate)}</td>
                   <td>{formatGender(patient.gender)}</td>
                   <td className="patient-actions">

@@ -30,6 +30,28 @@ export function formatName(names?: HumanName[]): string {
   return parts.join(" ") || "Unknown";
 }
 
+export function getPhone(patient: Patient): string | undefined {
+  return patient.telecom?.find(t => t.system === "phone")?.value;
+}
+
+export function calculateAge(birthDate?: string): number | undefined {
+  if (!birthDate) return undefined;
+  const dob = new Date(birthDate + "T00:00:00");
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+export function formatBirthDateWithAge(birthDate?: string): string {
+  const formatted = formatBirthDate(birthDate);
+  const age = calculateAge(birthDate);
+  return age !== undefined ? `${formatted} (${age}y)` : formatted;
+}
+
 export function formatGender(gender?: string): string {
   if (!gender) return "—";
   return gender.charAt(0).toUpperCase() + gender.slice(1);
