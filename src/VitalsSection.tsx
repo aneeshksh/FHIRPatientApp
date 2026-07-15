@@ -22,13 +22,13 @@ type MetricDef = {
 };
 
 const METRICS: MetricDef[] = [
-  { key: "heartRate", label: "Heart Rate", unit: "/min", color: "#3b82f6", decimals: 0 },
-  { key: "temperature", label: "Temperature", unit: "°C", color: "#f97316", decimals: 1 },
-  { key: "respiratoryRate", label: "Respiratory Rate", unit: "/min", color: "#a78bfa", decimals: 0 },
-  { key: "oxygenSaturation", label: "Oxygen Saturation", unit: "%", color: "#34d399", decimals: 0 },
-  { key: "height", label: "Height", unit: "cm", color: "#60a5fa", decimals: 1 },
-  { key: "weight", label: "Weight", unit: "kg", color: "#fbbf24", decimals: 1 },
-  { key: "bmi", label: "BMI", unit: "kg/m²", color: "#f472b6", decimals: 1 },
+  { key: "heartRate", label: "Heart Rate", unit: "/min", color: "#ea2c00", decimals: 0 },
+  { key: "temperature", label: "Temperature", unit: "°C", color: "#ff5832", decimals: 1 },
+  { key: "respiratoryRate", label: "Respiratory Rate", unit: "/min", color: "#76a8f4", decimals: 0 },
+  { key: "oxygenSaturation", label: "Oxygen Saturation", unit: "%", color: "#3d6fc7", decimals: 0 },
+  { key: "height", label: "Height", unit: "cm", color: "#a7988a", decimals: 1 },
+  { key: "weight", label: "Weight", unit: "kg", color: "#6d645a", decimals: 1 },
+  { key: "bmi", label: "BMI", unit: "kg/m²", color: "#c02907", decimals: 1 },
 ];
 
 function formatDate(date: string): string {
@@ -54,14 +54,14 @@ export function VitalsSection({ rows }: VitalsSectionProps) {
   const bpSeries: ChartSeries[] = [
     {
       label: "Systolic",
-      color: "#3b82f6",
+      color: "#ea2c00",
       points: sortedAsc
         .filter(r => r.systolic !== undefined)
         .map(r => ({ date: r.date, value: r.systolic! })),
     },
     {
       label: "Diastolic",
-      color: "#f97316",
+      color: "#76a8f4",
       points: sortedAsc
         .filter(r => r.diastolic !== undefined)
         .map(r => ({ date: r.date, value: r.diastolic! })),
