@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules
+dist
+out
+coverage
+*.log
+.env
+.env.*
+.claude
+.idea
+.DS_Store
+README.md

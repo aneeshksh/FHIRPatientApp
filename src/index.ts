@@ -12,6 +12,8 @@ if (!FHIR_BASE_URL || !FHIR_BEARER_TOKEN) {
 }
 
 const server = serve({
+  port: process.env.PORT ?? 3000,
+  hostname: "0.0.0.0",
   routes: {
     "/fhir/*": async req => {
       const url = new URL(req.url);
