@@ -10,10 +10,11 @@ import {
 } from "./fhirPatient";
 
 type PatientListProps = {
+  practitionerId: string;
   onSelectPatient: (id: string) => void;
 };
 
-export function PatientList({ onSelectPatient }: PatientListProps) {
+export function PatientList({ practitionerId, onSelectPatient }: PatientListProps) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +36,7 @@ export function PatientList({ onSelectPatient }: PatientListProps) {
         const params = new URLSearchParams({
           _count: "20",
           _offset: String(pageOffset),
+          "general-practitioner": `Practitioner/${practitionerId}`,
         });
         if (name.trim()) {
           params.set("name", name.trim());
@@ -58,7 +60,7 @@ export function PatientList({ onSelectPatient }: PatientListProps) {
         setLoading(false);
       }
     },
-    [activeSearch],
+    [activeSearch, practitionerId],
   );
 
   useEffect(() => {
@@ -102,7 +104,7 @@ export function PatientList({ onSelectPatient }: PatientListProps) {
     setFormError(null);
 
     try {
-      await savePatient(values, editingPatient);
+      await savePatient(values, editingPatient, practitionerId);
       setShowForm(false);
       setEditingPatient(undefined);
       setFormError(null);

@@ -18,9 +18,15 @@ import {
 } from "./fhirClinical";
 import { MedicationsSection } from "./MedicationsSection";
 import { VitalsSection } from "./VitalsSection";
+import { EncountersSection } from "./EncountersSection";
+import { AppointmentsSection } from "./AppointmentsSection";
+import { EncounterModal } from "./EncounterModal";
+import { listEncountersForPatient, type Encounter } from "./fhirEncounter";
+import { listAppointmentsForPatient, type Appointment } from "./fhirAppointment";
 
 type PatientDetailProps = {
   patientId: string;
+  practitionerId: string;
   onBack: () => void;
 };
 
@@ -28,14 +34,23 @@ function entriesOf<T extends Resource>(bundle: Bundle<T> | null): T[] {
   return bundle?.entry?.flatMap(e => (e.resource ? [e.resource] : [])) ?? [];
 }
 
-export function PatientDetail({ patientId, onBack }: PatientDetailProps) {
+export function PatientDetail({ patientId, practitionerId, onBack }: PatientDetailProps) {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [observations, setObservations] = useState<Observation[]>([]);
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [medicationRequests, setMedicationRequests] = useState<MedicationRequest[]>([]);
   const [medicationsById, setMedicationsById] = useState<Map<string, Medication>>(new Map());
+  const [encounters, setEncounters] = useState<Encounter[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showEncounterModal, setShowEncounterModal] = useState(false);
+
+  const reloadEncounters = () => {
+    listEncountersForPatient(patientId)
+      .then(setEncounters)
+      .catch(() => {});
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -45,14 +60,17 @@ export function PatientDetail({ patientId, onBack }: PatientDetailProps) {
       setError(null);
 
       try {
-        const [patientRes, obsRes, condRes, medReqRes] = await Promise.all([
-          fetch(`/fhir/Patient/${patientId}`),
-          fetch(
-            `/fhir/Observation?patient=${patientId}&category=vital-signs&_count=200&_sort=date`,
-          ),
-          fetch(`/fhir/Condition?patient=${patientId}&_count=100`),
-          fetch(`/fhir/MedicationRequest?patient=${patientId}&_count=100`),
-        ]);
+        const [patientRes, obsRes, condRes, medReqRes, encounterList, appointmentList] =
+          await Promise.all([
+            fetch(`/fhir/Patient/${patientId}`),
+            fetch(
+              `/fhir/Observation?patient=${patientId}&category=vital-signs&_count=200&_sort=date`,
+            ),
+            fetch(`/fhir/Condition?patient=${patientId}&_count=100`),
+            fetch(`/fhir/MedicationRequest?patient=${patientId}&_count=100`),
+            listEncountersForPatient(patientId).catch(() => [] as Encounter[]),
+            listAppointmentsForPatient(patientId).catch(() => [] as Appointment[]),
+          ]);
 
         if (!patientRes.ok) {
           throw new Error(`Failed to load patient (${patientRes.status})`);
@@ -97,6 +115,8 @@ export function PatientDetail({ patientId, onBack }: PatientDetailProps) {
               .map(m => [m.id!, m]),
           ),
         );
+        setEncounters(encounterList);
+        setAppointments(appointmentList);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load patient");
@@ -144,7 +164,16 @@ export function PatientDetail({ patientId, onBack }: PatientDetailProps) {
       </button>
 
       <div className="patient-detail-header">
-        <h1>{formatName(patient.name)}</h1>
+        <div className="detail-section-header">
+          <h1>{formatName(patient.name)}</h1>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => setShowEncounterModal(true)}
+          >
+            New encounter
+          </button>
+        </div>
         <dl className="patient-demographics">
           <div>
             <dt>Gender</dt>
@@ -167,6 +196,20 @@ export function PatientDetail({ patientId, onBack }: PatientDetailProps) {
         medicationRequests={medicationRequests}
         medicationsById={medicationsById}
       />
+      <AppointmentsSection appointments={appointments} />
+      <EncountersSection encounters={encounters} />
+
+      {showEncounterModal && (
+        <EncounterModal
+          patientId={patientId}
+          practitionerId={practitionerId}
+          onClose={() => setShowEncounterModal(false)}
+          onSaved={() => {
+            setShowEncounterModal(false);
+            reloadEncounters();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import type { Bundle, HumanName, Patient } from "fhir/r4";
+import { extractFhirError } from "./fhirError";
 
 export type { Bundle, HumanName, Patient };
+export { extractFhirError };
 
 export type PatientFormValues = {
   prefix: string;
@@ -101,6 +103,7 @@ export function patientToFormValues(patient?: Patient): PatientFormValues {
 export function formValuesToPatient(
   values: PatientFormValues,
   existing?: Patient,
+  generalPractitionerId?: string,
 ): Patient {
   const name: HumanName = {
     use: "official",
@@ -119,6 +122,14 @@ export function formValuesToPatient(
   patient.name = [name];
   patient.gender = (values.gender as Patient["gender"]) || undefined;
   patient.birthDate = values.birthDate || undefined;
+
+  // Only set on create — reassignment to a different practitioner is an
+  // admin-only action (see AdminPatients.tsx) and must not be overwritten here.
+  if (!existing && generalPractitionerId) {
+    patient.generalPractitioner = [
+      { reference: `Practitioner/${generalPractitionerId}` },
+    ];
+  }
 
   const otherIdentifiers =
     patient.identifier?.filter(
@@ -152,20 +163,28 @@ export function formValuesToPatient(
   return patient;
 }
 
-export function extractFhirError(body: unknown): string | null {
-  if (!body || typeof body !== "object") return null;
-  const outcome = body as {
-    issue?: { diagnostics?: string; details?: { text?: string } }[];
-  };
-  const issue = outcome.issue?.[0];
-  return issue?.diagnostics ?? issue?.details?.text ?? null;
+export async function listPatientsForPractitioner(
+  practitionerId: string,
+): Promise<Patient[]> {
+  const params = new URLSearchParams({
+    "general-practitioner": `Practitioner/${practitionerId}`,
+    _count: "200",
+  });
+
+  const res = await fetch(`/fhir/Patient?${params}`);
+  if (!res.ok) {
+    throw new Error(`Failed to load patients (${res.status})`);
+  }
+  const bundle: Bundle<Patient> = await res.json();
+  return bundle.entry?.flatMap(e => (e.resource ? [e.resource] : [])) ?? [];
 }
 
 export async function savePatient(
   values: PatientFormValues,
   existing?: Patient,
+  generalPractitionerId?: string,
 ): Promise<Patient> {
-  const resource = formValuesToPatient(values, existing);
+  const resource = formValuesToPatient(values, existing, generalPractitionerId);
   const isCreate = !existing?.id;
   const url = isCreate ? "/fhir/Patient" : `/fhir/Patient/${existing.id}`;
   const method = isCreate ? "POST" : "PUT";
