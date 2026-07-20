@@ -1,32 +1,49 @@
-import { Database } from "bun:sqlite";
+import mysql from "mysql2/promise";
 
-const DB_PATH = process.env.DB_PATH ?? "app.db";
+// Cloud Run + Cloud SQL: mount the instance with `--add-cloudsql-instances`
+// and set DB_SOCKET_PATH=/cloudsql/PROJECT:REGION:INSTANCE (no proxy needed).
+// Local dev: run a local MySQL server, or the Cloud SQL Auth Proxy
+// (`cloud-sql-proxy --port 3306 PROJECT:REGION:INSTANCE`), and point
+// DB_HOST/DB_PORT at it — both look like a plain TCP MySQL server.
+const DB_SOCKET_PATH = process.env.DB_SOCKET_PATH;
 
-export const db = new Database(DB_PATH, { create: true });
-db.exec("PRAGMA journal_mode = WAL;");
-db.exec("PRAGMA foreign_keys = ON;");
+export const pool = mysql.createPool({
+  ...(DB_SOCKET_PATH
+    ? { socketPath: DB_SOCKET_PATH }
+    : {
+        host: process.env.DB_HOST ?? "127.0.0.1",
+        port: Number(process.env.DB_PORT ?? 3306),
+      }),
+  user: process.env.DB_USER ?? "root",
+  password: process.env.DB_PASSWORD ?? "",
+  database: process.env.DB_NAME ?? "fhir_patient_app",
+  dateStrings: true,
+});
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    full_name TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('admin', 'practitioner')),
-    fhir_practitioner_id TEXT,
-    is_active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-`);
+export async function initDb(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      username VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      full_name VARCHAR(255) NOT NULL,
+      role ENUM('admin', 'practitioner') NOT NULL,
+      fhir_practitioner_id VARCHAR(255),
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    expires_at TEXT NOT NULL
-  );
-`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id VARCHAR(36) PRIMARY KEY,
+      user_id INT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expires_at DATETIME NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+  `);
+}
 
 export type UserRole = "admin" | "practitioner";
 
@@ -48,72 +65,77 @@ export function toPublicUser(user: UserRow): PublicUser {
   return rest;
 }
 
-export function getUserByUsername(username: string): UserRow | null {
-  return (
-    (db
-      .query("SELECT * FROM users WHERE username = ?")
-      .get(username) as UserRow | undefined) ?? null
+export async function getUserByUsername(
+  username: string,
+): Promise<UserRow | null> {
+  const [rows] = await pool.execute(
+    "SELECT * FROM users WHERE username = ?",
+    [username],
   );
+  return ((rows as UserRow[])[0]) ?? null;
 }
 
-export function getUserById(id: number): UserRow | null {
-  return (
-    (db.query("SELECT * FROM users WHERE id = ?").get(id) as
-      | UserRow
-      | undefined) ?? null
+export async function getUserById(id: number): Promise<UserRow | null> {
+  const [rows] = await pool.execute("SELECT * FROM users WHERE id = ?", [id]);
+  return ((rows as UserRow[])[0]) ?? null;
+}
+
+export async function listUsers(): Promise<UserRow[]> {
+  const [rows] = await pool.query(
+    "SELECT * FROM users ORDER BY created_at ASC",
   );
+  return rows as UserRow[];
 }
 
-export function listUsers(): UserRow[] {
-  return db
-    .query("SELECT * FROM users ORDER BY created_at ASC")
-    .all() as UserRow[];
-}
-
-export function createUser(params: {
+export async function createUser(params: {
   username: string;
   passwordHash: string;
   fullName: string;
   role: UserRole;
   fhirPractitionerId?: string | null;
-}): UserRow {
-  const result = db
-    .query(
-      `INSERT INTO users (username, password_hash, full_name, role, fhir_practitioner_id)
-       VALUES (?, ?, ?, ?, ?)
-       RETURNING *`,
-    )
-    .get(
+}): Promise<UserRow> {
+  const [result] = await pool.execute(
+    `INSERT INTO users (username, password_hash, full_name, role, fhir_practitioner_id)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
       params.username,
       params.passwordHash,
       params.fullName,
       params.role,
       params.fhirPractitionerId ?? null,
-    ) as UserRow;
-  return result;
+    ],
+  );
+  const insertId = (result as mysql.ResultSetHeader).insertId;
+  return (await getUserById(insertId))!;
 }
 
-export function setUserActive(id: number, isActive: boolean): void {
-  db.query("UPDATE users SET is_active = ? WHERE id = ?").run(
+export async function setUserActive(
+  id: number,
+  isActive: boolean,
+): Promise<void> {
+  await pool.execute("UPDATE users SET is_active = ? WHERE id = ?", [
     isActive ? 1 : 0,
     id,
-  );
+  ]);
 }
 
-export function setUserPasswordHash(id: number, passwordHash: string): void {
-  db.query("UPDATE users SET password_hash = ? WHERE id = ?").run(
+export async function setUserPasswordHash(
+  id: number,
+  passwordHash: string,
+): Promise<void> {
+  await pool.execute("UPDATE users SET password_hash = ? WHERE id = ?", [
     passwordHash,
     id,
-  );
+  ]);
 }
 
-export function setUserFhirPractitionerId(
+export async function setUserFhirPractitionerId(
   id: number,
   fhirPractitionerId: string,
-): void {
-  db.query("UPDATE users SET fhir_practitioner_id = ? WHERE id = ?").run(
-    fhirPractitionerId,
-    id,
+): Promise<void> {
+  await pool.execute(
+    "UPDATE users SET fhir_practitioner_id = ? WHERE id = ?",
+    [fhirPractitionerId, id],
   );
 }
 
@@ -126,42 +148,52 @@ export type SessionRow = {
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-export function createSession(userId: number): SessionRow {
-  const id = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-  db.query(
-    "INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)",
-  ).run(id, userId, expiresAt);
-  return { id, user_id: userId, created_at: new Date().toISOString(), expires_at: expiresAt };
+function toMysqlDatetime(date: Date): string {
+  return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
-export function getSession(id: string): SessionRow | null {
-  const session = db
-    .query("SELECT * FROM sessions WHERE id = ?")
-    .get(id) as SessionRow | undefined;
+export async function createSession(userId: number): Promise<SessionRow> {
+  const id = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  await pool.execute(
+    "INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)",
+    [id, userId, toMysqlDatetime(expiresAt)],
+  );
+  return {
+    id,
+    user_id: userId,
+    created_at: toMysqlDatetime(new Date()),
+    expires_at: toMysqlDatetime(expiresAt),
+  };
+}
+
+export async function getSession(id: string): Promise<SessionRow | null> {
+  const [rows] = await pool.execute("SELECT * FROM sessions WHERE id = ?", [
+    id,
+  ]);
+  const session = (rows as SessionRow[])[0];
   if (!session) return null;
   if (new Date(session.expires_at).getTime() < Date.now()) {
-    deleteSession(id);
+    await deleteSession(id);
     return null;
   }
   return session;
 }
 
-export function deleteSession(id: string): void {
-  db.query("DELETE FROM sessions WHERE id = ?").run(id);
+export async function deleteSession(id: string): Promise<void> {
+  await pool.execute("DELETE FROM sessions WHERE id = ?", [id]);
 }
 
 const DEFAULT_ADMIN_USERNAME = process.env.SEED_ADMIN_USERNAME ?? "admin";
 const DEFAULT_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "changeme123";
 
 export async function seedAdminIfNeeded(): Promise<void> {
-  const count = db.query("SELECT COUNT(*) as count FROM users").get() as {
-    count: number;
-  };
-  if (count.count > 0) return;
+  const [rows] = await pool.query("SELECT COUNT(*) as count FROM users");
+  const count = (rows as { count: number }[])[0]?.count ?? 0;
+  if (count > 0) return;
 
   const passwordHash = await Bun.password.hash(DEFAULT_ADMIN_PASSWORD);
-  createUser({
+  await createUser({
     username: DEFAULT_ADMIN_USERNAME,
     passwordHash,
     fullName: "Administrator",

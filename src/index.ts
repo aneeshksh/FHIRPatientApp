@@ -1,6 +1,7 @@
 import { serve } from "bun";
 import index from "./index.html";
 import {
+  initDb,
   seedAdminIfNeeded,
   getUserByUsername,
   getUserById,
@@ -19,6 +20,7 @@ import {
 import { fhirFetch } from "./fhirServer";
 import { adminRoutes } from "./adminRoutes";
 
+await initDb();
 await seedAdminIfNeeded();
 
 const server = serve({
@@ -39,7 +41,7 @@ const server = serve({
           );
         }
 
-        const user = getUserByUsername(username);
+        const user = await getUserByUsername(username);
         if (!user || !user.is_active) {
           return Response.json(
             { error: "Invalid username or password" },
@@ -55,29 +57,29 @@ const server = serve({
           );
         }
 
-        const session = createSessionForUser(user.id);
+        const session = await createSessionForUser(user.id);
         setSessionCookie(req, session.id);
         return Response.json({ user: toPublicUser(user) });
       },
     },
 
     "/logout": {
-      POST: req => {
-        clearSessionCookie(req);
+      POST: async req => {
+        await clearSessionCookie(req);
         return Response.json({ ok: true });
       },
     },
 
     "/api/me": {
-      GET: req => {
-        const user = getCurrentUser(req);
+      GET: async req => {
+        const user = await getCurrentUser(req);
         return Response.json({ user });
       },
     },
 
     "/api/change-password": {
       POST: async req => {
-        const auth = requireAuth(req);
+        const auth = await requireAuth(req);
         if (auth instanceof Response) return auth;
 
         const body = await req.json().catch(() => null);
@@ -100,7 +102,7 @@ const server = serve({
           );
         }
 
-        const user = getUserById(auth.id);
+        const user = await getUserById(auth.id);
         if (!user) {
           return Response.json({ error: "User not found" }, { status: 404 });
         }
@@ -114,7 +116,7 @@ const server = serve({
         }
 
         const passwordHash = await hashPassword(newPassword);
-        setUserPasswordHash(user.id, passwordHash);
+        await setUserPasswordHash(user.id, passwordHash);
 
         return Response.json({ ok: true });
       },
@@ -123,7 +125,7 @@ const server = serve({
     ...adminRoutes,
 
     "/fhir/*": async req => {
-      const auth = requireAuth(req);
+      const auth = await requireAuth(req);
       if (auth instanceof Response) return auth;
 
       const url = new URL(req.url);

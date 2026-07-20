@@ -17,15 +17,15 @@ function isUserRole(value: unknown): value is UserRole {
 
 export const adminRoutes = {
   "/api/admin/users": {
-    GET(req: BunRequest) {
-      const auth = requireRole(req, "admin");
+    async GET(req: BunRequest) {
+      const auth = await requireRole(req, "admin");
       if (auth instanceof Response) return auth;
 
-      return Response.json({ users: listUsers().map(toPublicUser) });
+      return Response.json({ users: (await listUsers()).map(toPublicUser) });
     },
 
     async POST(req: BunRequest) {
-      const auth = requireRole(req, "admin");
+      const auth = await requireRole(req, "admin");
       if (auth instanceof Response) return auth;
 
       const body = await req.json().catch(() => null);
@@ -50,7 +50,7 @@ export const adminRoutes = {
         );
       }
 
-      if (getUserByUsername(username)) {
+      if (await getUserByUsername(username)) {
         return Response.json({ error: "Username already exists" }, { status: 409 });
       }
 
@@ -76,7 +76,7 @@ export const adminRoutes = {
       }
 
       const passwordHash = await hashPassword(password);
-      const user = createUser({
+      const user = await createUser({
         username,
         passwordHash,
         fullName,
@@ -90,7 +90,7 @@ export const adminRoutes = {
 
   "/api/admin/users/:id/active": {
     async PATCH(req: BunRequest<"/api/admin/users/:id/active">) {
-      const auth = requireRole(req, "admin");
+      const auth = await requireRole(req, "admin");
       if (auth instanceof Response) return auth;
 
       const id = Number(req.params.id);
@@ -101,22 +101,22 @@ export const adminRoutes = {
         return Response.json({ error: "Invalid request" }, { status: 400 });
       }
 
-      const existing = getUserById(id);
+      const existing = await getUserById(id);
       if (!existing) {
         return Response.json({ error: "User not found" }, { status: 404 });
       }
 
-      setUserActive(id, isActive);
-      return Response.json({ user: toPublicUser(getUserById(id)!) });
+      await setUserActive(id, isActive);
+      return Response.json({ user: toPublicUser((await getUserById(id))!) });
     },
   },
 
   "/api/admin/practitioners": {
-    GET(req: BunRequest) {
-      const auth = requireRole(req, "admin");
+    async GET(req: BunRequest) {
+      const auth = await requireRole(req, "admin");
       if (auth instanceof Response) return auth;
 
-      const practitioners = listUsers()
+      const practitioners = (await listUsers())
         .filter(
           (u): u is typeof u & { fhir_practitioner_id: string } =>
             u.role === "practitioner" && u.is_active === 1 && Boolean(u.fhir_practitioner_id),
@@ -133,7 +133,7 @@ export const adminRoutes = {
 
   "/api/admin/patients/:id/practitioner": {
     async PATCH(req: BunRequest<"/api/admin/patients/:id/practitioner">) {
-      const auth = requireRole(req, "admin");
+      const auth = await requireRole(req, "admin");
       if (auth instanceof Response) return auth;
 
       const patientId = req.params.id;
