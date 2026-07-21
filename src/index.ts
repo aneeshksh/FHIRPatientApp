@@ -19,6 +19,7 @@ import {
 } from "./auth";
 import { fhirFetch } from "./fhirServer";
 import { adminRoutes } from "./adminRoutes";
+import { pgxRoutes } from "./pgxRoutes";
 
 await initDb();
 await seedAdminIfNeeded();
@@ -123,6 +124,7 @@ const server = serve({
     },
 
     ...adminRoutes,
+    ...pgxRoutes,
 
     "/fhir/*": async req => {
       const auth = await requireAuth(req);

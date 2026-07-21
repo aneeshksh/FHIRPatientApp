@@ -17,6 +17,7 @@ import {
   type Observation,
 } from "./fhirClinical";
 import { MedicationsSection } from "./MedicationsSection";
+import { PgxInteractionsSection } from "./PgxInteractionsSection";
 import { VitalsSection } from "./VitalsSection";
 import { EncountersSection } from "./EncountersSection";
 import { AppointmentsSection } from "./AppointmentsSection";
@@ -208,6 +209,11 @@ export function PatientDetail({ patientId, practitionerId, onBack }: PatientDeta
         medicationsById={medicationsById}
         patientId={patientId}
         onMedicationAdded={request => setMedicationRequests(prev => [...prev, request])}
+      />
+      <PgxInteractionsSection
+        patient={patient}
+        medicationRequests={medicationRequests}
+        medicationsById={medicationsById}
       />
       <AppointmentsSection appointments={appointments} />
       <EncountersSection encounters={encounters} />

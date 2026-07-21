@@ -8,6 +8,7 @@ FROM base AS release
 COPY --from=install /app/node_modules ./node_modules
 COPY package.json bun.lock tsconfig.json ./
 COPY src ./src
+COPY docs ./docs
 ENV NODE_ENV=production
 RUN chown -R bun:bun /app
 USER bun

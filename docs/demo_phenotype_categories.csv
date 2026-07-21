@@ -1,0 +1,52 @@
+genesymbol,phenotype,activityscore
+CYP2C19,Indeterminate,n/a
+CYP2C19,Intermediate Metabolizer,n/a
+CYP2C19,Likely Intermediate Metabolizer,n/a
+CYP2C19,Likely Poor Metabolizer,n/a
+CYP2C19,Normal Metabolizer,n/a
+CYP2C19,Poor Metabolizer,n/a
+CYP2C19,Rapid Metabolizer,n/a
+CYP2C19,Ultrarapid Metabolizer,n/a
+CYP2D6,Indeterminate,n/a
+CYP2D6,Intermediate Metabolizer,0.5
+CYP2D6,Intermediate Metabolizer,0.25
+CYP2D6,Intermediate Metabolizer,0.75
+CYP2D6,Intermediate Metabolizer,1.0
+CYP2D6,Normal Metabolizer,1.5
+CYP2D6,Normal Metabolizer,2.0
+CYP2D6,Normal Metabolizer,2.25
+CYP2D6,Normal Metabolizer,1.75
+CYP2D6,Normal Metabolizer,1.25
+CYP2D6,Poor Metabolizer,0.0
+CYP2D6,Ultrarapid Metabolizer,3.0
+CYP2D6,Ultrarapid Metabolizer,≥3.25
+CYP2D6,Ultrarapid Metabolizer,4.0
+CYP2D6,Ultrarapid Metabolizer,≥5.0
+CYP2D6,Ultrarapid Metabolizer,≥3.0
+CYP2D6,Ultrarapid Metabolizer,≥4.0
+CYP2D6,Ultrarapid Metabolizer,≥3.5
+CYP2D6,Ultrarapid Metabolizer,≥3.75
+CYP2D6,Ultrarapid Metabolizer,≥6.0
+CYP2D6,Ultrarapid Metabolizer,2.75
+CYP2D6,Ultrarapid Metabolizer,2.5
+DPYD,Intermediate Metabolizer,1.0
+DPYD,Intermediate Metabolizer,1.5
+DPYD,Normal Metabolizer,2.0
+DPYD,Poor Metabolizer,0.0
+DPYD,Poor Metabolizer,0.5
+NUDT15,Indeterminate,n/a
+NUDT15,Intermediate Metabolizer,n/a
+NUDT15,Normal Metabolizer,n/a
+NUDT15,Poor Metabolizer,n/a
+NUDT15,Possible Intermediate Metabolizer,n/a
+SLCO1B1,Decreased Function,n/a
+SLCO1B1,Increased Function,n/a
+SLCO1B1,Indeterminate,n/a
+SLCO1B1,Normal Function,n/a
+SLCO1B1,Poor Function,n/a
+SLCO1B1,Possible Decreased Function,n/a
+TPMT,Indeterminate,n/a
+TPMT,Intermediate Metabolizer,n/a
+TPMT,Normal Metabolizer,n/a
+TPMT,Poor Metabolizer,n/a
+TPMT,Possible Intermediate Metabolizer,n/a
