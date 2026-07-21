@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { VitalsChart, type ChartSeries } from "./VitalsChart";
-import type { VitalRow } from "./fhirClinical";
+import { createVitalObservations, type Observation, type VitalRow, type VitalsFormValues } from "./fhirClinical";
+import { VitalsForm } from "./VitalsForm";
 
-type VitalsSectionProps = { rows: VitalRow[] };
+type VitalsSectionProps = {
+  rows: VitalRow[];
+  patientId: string;
+  onVitalsAdded: (observations: Observation[]) => void;
+};
 
 type MetricKey =
   | "heartRate"
@@ -43,8 +48,11 @@ function formatValue(value: number | undefined, decimals: number): string {
   return value === undefined ? "—" : value.toFixed(decimals);
 }
 
-export function VitalsSection({ rows }: VitalsSectionProps) {
+export function VitalsSection({ rows, patientId, onVitalsAdded }: VitalsSectionProps) {
   const [view, setView] = useState<"chart" | "table">("chart");
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const sortedAsc = [...rows].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
@@ -70,25 +78,51 @@ export function VitalsSection({ rows }: VitalsSectionProps) {
 
   const latestBp = sortedDesc.find(r => r.systolic !== undefined || r.diastolic !== undefined);
 
+  const closeForm = () => {
+    if (saving) return;
+    setShowForm(false);
+    setFormError(null);
+  };
+
+  const handleSubmit = async (values: VitalsFormValues) => {
+    setSaving(true);
+    setFormError(null);
+
+    try {
+      const created = await createVitalObservations(patientId, values);
+      onVitalsAdded(created);
+      setShowForm(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to save vitals");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <section className="detail-section">
       <div className="detail-section-header">
         <h2>Vital Signs</h2>
-        <div className="view-toggle">
-          <button
-            type="button"
-            className={view === "chart" ? "toggle-button active" : "toggle-button"}
-            onClick={() => setView("chart")}
-          >
-            Chart
+        <div className="vitals-section-actions">
+          <button type="button" className="primary-button" onClick={() => setShowForm(true)}>
+            Add vitals
           </button>
-          <button
-            type="button"
-            className={view === "table" ? "toggle-button active" : "toggle-button"}
-            onClick={() => setView("table")}
-          >
-            Table
-          </button>
+          <div className="view-toggle">
+            <button
+              type="button"
+              className={view === "chart" ? "toggle-button active" : "toggle-button"}
+              onClick={() => setView("chart")}
+            >
+              Chart
+            </button>
+            <button
+              type="button"
+              className={view === "table" ? "toggle-button active" : "toggle-button"}
+              onClick={() => setView("table")}
+            >
+              Table
+            </button>
+          </div>
         </div>
       </div>
 
@@ -165,6 +199,15 @@ export function VitalsSection({ rows }: VitalsSectionProps) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {showForm && (
+        <VitalsForm
+          onSubmit={handleSubmit}
+          onCancel={closeForm}
+          saving={saving}
+          error={formError}
+        />
       )}
     </section>
   );

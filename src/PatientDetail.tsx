@@ -190,11 +190,24 @@ export function PatientDetail({ patientId, practitionerId, onBack }: PatientDeta
         </dl>
       </div>
 
-      <VitalsSection rows={vitalRows} />
-      <ConditionsSection conditions={conditions} />
+      <VitalsSection
+        rows={vitalRows}
+        patientId={patientId}
+        onVitalsAdded={created => setObservations(prev => [...prev, ...created])}
+      />
+      <ConditionsSection
+        conditions={conditions}
+        patientId={patientId}
+        onConditionAdded={condition => setConditions(prev => [...prev, condition])}
+        onConditionUpdated={updated =>
+          setConditions(prev => prev.map(c => (c.id === updated.id ? updated : c)))
+        }
+      />
       <MedicationsSection
         medicationRequests={medicationRequests}
         medicationsById={medicationsById}
+        patientId={patientId}
+        onMedicationAdded={request => setMedicationRequests(prev => [...prev, request])}
       />
       <AppointmentsSection appointments={appointments} />
       <EncountersSection encounters={encounters} />
