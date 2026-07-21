@@ -226,20 +226,63 @@ body {
   white-space: nowrap;
 }
 
-.patient-name-link {
-  background: transparent;
+.patient-name-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--color-accent-blue-soft);
+  color: var(--color-accent-blue);
   border: 0;
-  padding: 0;
+  border-radius: var(--radius-pill);
+  padding: 0.4rem 0.9rem;
   font: inherit;
-  font-weight: 500;
-  color: var(--color-text);
+  font-weight: 600;
+  font-size: 0.85rem;
   cursor: pointer;
-  text-align: left;
+  transition: background 0.15s, color 0.15s;
 }
 
-.patient-name-link:hover {
-  color: var(--color-primary);
-  text-decoration: underline;
+.patient-name-chip:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-text);
+}
+
+.patient-name-chip .chip-arrow {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  transition: transform 0.15s;
+}
+
+.patient-name-chip:hover .chip-arrow {
+  transform: translateX(2px);
+}
+
+.edit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--color-canvas-alt);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  padding: 0.4rem 0.95rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.edit-chip:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-text);
+  border-color: transparent;
+}
+
+.edit-chip .chip-icon {
+  font-size: 0.85rem;
 }
 
 .patient-form-overlay {
@@ -427,6 +470,11 @@ body {
 
 .detail-section {
   margin-bottom: 2.25rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem 1.5rem;
+  box-shadow: var(--shadow-card);
 }
 
 .detail-section-header {
@@ -435,6 +483,17 @@ body {
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1.1rem;
+}
+
+.detail-scroll-list {
+  max-height: 32rem;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+}
+
+.detail-scroll-list .condition-list,
+.detail-scroll-list .medication-list {
+  gap: 0.6rem;
 }
 
 .detail-section-header h2 {

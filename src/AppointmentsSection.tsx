@@ -27,16 +27,18 @@ export function AppointmentsSection({ appointments }: AppointmentsSectionProps) 
       {sorted.length === 0 ? (
         <p className="patient-list-status">No appointments recorded.</p>
       ) : (
-        <ul className="condition-list">
-          {sorted.map(appointment => (
-            <li key={appointment.id} className="condition-item">
-              <span className="condition-name">{formatDateTime(appointment.start)}</span>
-              <span className={`status-badge status-${appointment.status === "booked" ? "active" : "unknown"}`}>
-                {appointment.status}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="detail-scroll-list">
+          <ul className="condition-list">
+            {sorted.map(appointment => (
+              <li key={appointment.id} className="condition-item">
+                <span className="condition-name">{formatDateTime(appointment.start)}</span>
+                <span className={`status-badge status-${appointment.status === "booked" ? "active" : "unknown"}`}>
+                  {appointment.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );

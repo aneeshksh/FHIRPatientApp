@@ -35,20 +35,22 @@ export function ConditionsSection({ conditions }: ConditionsSectionProps) {
       {sorted.length === 0 ? (
         <p className="patient-list-status">No conditions recorded.</p>
       ) : (
-        <ul className="condition-list">
-          {sorted.map(condition => {
-            const status = getClinicalStatus(condition);
-            return (
-              <li key={condition.id} className="condition-item">
-                <span className="condition-name">{getConditionName(condition)}</span>
-                <span className={`status-badge status-${status}`}>{status}</span>
-                <span className="condition-date">
-                  Onset {formatDate(condition.onsetDateTime ?? condition.recordedDate)}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="detail-scroll-list">
+          <ul className="condition-list">
+            {sorted.map(condition => {
+              const status = getClinicalStatus(condition);
+              return (
+                <li key={condition.id} className="condition-item">
+                  <span className="condition-name">{getConditionName(condition)}</span>
+                  <span className={`status-badge status-${status}`}>{status}</span>
+                  <span className="condition-date">
+                    Onset {formatDate(condition.onsetDateTime ?? condition.recordedDate)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </section>
   );

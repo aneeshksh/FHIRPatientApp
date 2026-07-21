@@ -37,16 +37,18 @@ export function EncountersSection({ encounters }: EncountersSectionProps) {
       {sorted.length === 0 ? (
         <p className="patient-list-status">No encounters recorded.</p>
       ) : (
-        <ul className="condition-list">
-          {sorted.map(encounter => (
-            <li key={encounter.id} className="condition-item">
-              <span className="condition-name">{preview(encounter)}</span>
-              <span className="condition-date">
-                {formatDateTime(encounterDate(encounter))}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="detail-scroll-list">
+          <ul className="condition-list">
+            {sorted.map(encounter => (
+              <li key={encounter.id} className="condition-item">
+                <span className="condition-name">{preview(encounter)}</span>
+                <span className="condition-date">
+                  {formatDateTime(encounterDate(encounter))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );

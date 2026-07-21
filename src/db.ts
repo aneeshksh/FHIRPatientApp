@@ -5,7 +5,9 @@ import mysql from "mysql2/promise";
 // Local dev: run a local MySQL server, or the Cloud SQL Auth Proxy
 // (`cloud-sql-proxy --port 3306 PROJECT:REGION:INSTANCE`), and point
 // DB_HOST/DB_PORT at it — both look like a plain TCP MySQL server.
-const DB_SOCKET_PATH = process.env.DB_SOCKET_PATH;
+const isCloudSqlSocket = (process.env.DB_HOST ?? "").startsWith("/cloudsql/");
+const DB_SOCKET_PATH = process.env.DB_SOCKET_PATH ??
+  (isCloudSqlSocket ? process.env.DB_HOST : undefined);
 
 export const pool = mysql.createPool({
   ...(DB_SOCKET_PATH

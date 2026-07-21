@@ -31,19 +31,21 @@ export function MedicationsSection({
       {active.length === 0 ? (
         <p className="patient-list-status">No current medications.</p>
       ) : (
-        <ul className="medication-list">
-          {active.map(request => (
-            <li key={request.id} className="medication-item">
-              <span className="medication-name">
-                {getMedicationDisplay(request, medicationsById)}
-              </span>
-              <span className="medication-meta">
-                Since {formatDate(request.authoredOn)}
-                {request.requester?.display ? ` · ${request.requester.display}` : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="detail-scroll-list">
+          <ul className="medication-list">
+            {active.map(request => (
+              <li key={request.id} className="medication-item">
+                <span className="medication-name">
+                  {getMedicationDisplay(request, medicationsById)}
+                </span>
+                <span className="medication-meta">
+                  Since {formatDate(request.authoredOn)}
+                  {request.requester?.display ? ` · ${request.requester.display}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );

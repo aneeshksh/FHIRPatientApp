@@ -191,10 +191,12 @@ export function PatientList({ practitionerId, onSelectPatient }: PatientListProp
                   <td>
                     <button
                       type="button"
-                      className="patient-name-link"
+                      className="patient-name-chip"
                       onClick={() => patient.id && onSelectPatient(patient.id)}
+                      title="View patient details"
                     >
                       {formatName(patient.name)}
+                      <span className="chip-arrow" aria-hidden="true">→</span>
                     </button>
                   </td>
                   <td>{formatBirthDate(patient.birthDate)}</td>
@@ -202,9 +204,11 @@ export function PatientList({ practitionerId, onSelectPatient }: PatientListProp
                   <td className="patient-actions">
                     <button
                       type="button"
-                      className="edit-button"
+                      className="edit-chip"
                       onClick={() => openEditForm(patient)}
+                      title="Edit patient"
                     >
+                      <span className="chip-icon" aria-hidden="true">✎</span>
                       Edit
                     </button>
                   </td>
