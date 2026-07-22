@@ -71,3 +71,34 @@ export async function reassignPatientPractitioner(
   });
   await parseOrThrow(res);
 }
+
+export type CascadeResourceType = "Observation" | "Condition" | "MedicationRequest";
+
+export type CascadeDeleteFailure = {
+  resourceType: CascadeResourceType | "Patient";
+  stage: "search" | "delete";
+  id?: string;
+  message: string;
+};
+
+export type CascadeDeleteResult = {
+  patientId: string;
+  deletedCounts: Record<CascadeResourceType, number>;
+  patientDeleted: boolean;
+  failure?: CascadeDeleteFailure;
+};
+
+// Unlike the other admin actions here, a non-2xx response is still a
+// meaningful result (a partial cascade failure), not just an error to
+// throw away — the caller needs `result` either way to show what did and
+// didn't get deleted, so this doesn't use parseOrThrow.
+export async function deletePatientCascade(patientId: string): Promise<CascadeDeleteResult> {
+  const res = await fetch(`/api/admin/patients/${patientId}`, { method: "DELETE" });
+  const body = await res.json().catch(() => null);
+
+  if (!body?.result) {
+    throw new Error(body?.error ?? `Delete request failed (${res.status})`);
+  }
+
+  return body.result as CascadeDeleteResult;
+}

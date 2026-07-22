@@ -8,12 +8,18 @@ import { extractFhirError } from "./fhirError";
  * Practitioner resource as part of admin user creation). Browser-initiated
  * FHIR calls should go through the `/fhir/*` route instead, which wraps this
  * same function.
+ *
+ * `path` may be a relative path (prefixed with FHIR_BASE_URL as usual) or a
+ * full URL — the latter lets callers follow a Bundle's `link.relation ===
+ * "next"` URL as-is (the FHIR spec has servers return that as an absolute
+ * URL back to themselves), which patientCascadeDelete.ts's pagination needs.
  */
 export async function fhirFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
-  return fetch(`${FHIR_BASE_URL}${path}`, {
+  const url = /^https?:\/\//i.test(path) ? path : `${FHIR_BASE_URL}${path}`;
+  return fetch(url, {
     ...init,
     headers: {
       Authorization: `Bearer ${FHIR_BEARER_TOKEN}`,

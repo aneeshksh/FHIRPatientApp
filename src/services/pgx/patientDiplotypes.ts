@@ -23,3 +23,24 @@ export function getPatientPgxDiplotypes(patient: Patient): Record<string, string
     return null;
   }
 }
+
+// ANE-35: builds the Patient to PUT after the profile form saves. Simple
+// overwrite, no partial-merge with whatever was there before — the caller
+// (dropdowns resolved to a diplotype object, or the advanced JSON path) has
+// already produced the full replacement value.
+export function setPatientPgxDiplotypes(
+  patient: Patient,
+  diplotypes: Record<string, string>,
+): Patient {
+  const otherExtensions = patient.extension?.filter(
+    ext => ext.url !== PGX_DIPLOTYPES_EXTENSION_URL,
+  ) ?? [];
+
+  return {
+    ...patient,
+    extension: [
+      ...otherExtensions,
+      { url: PGX_DIPLOTYPES_EXTENSION_URL, valueString: JSON.stringify(diplotypes) },
+    ],
+  };
+}

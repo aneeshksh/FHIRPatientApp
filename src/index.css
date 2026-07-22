@@ -14,6 +14,8 @@
   --color-primary-hover: #c02907;
   --color-primary-soft: #ffd5cc;
   --color-primary-soft-text: #c02907;
+  --color-danger: #b91c1c;
+  --color-danger-hover: #7f1d1d;
   --color-accent-blue: #76a8f4;
   --color-accent-blue-soft: #eaf1fe;
   --color-warning: #b45309;
@@ -100,6 +102,7 @@ body {
 
 .primary-button,
 .secondary-button,
+.danger-button,
 .edit-button,
 .load-more-button {
   border: 0;
@@ -133,6 +136,18 @@ body {
   border-color: var(--color-text);
 }
 
+/* Deliberately a different red from --color-primary (which is used all
+   over the app for ordinary primary actions) — irreversible deletes need
+   to read as visually distinct from "Save"/"Add", not identical to it. */
+.danger-button {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: var(--color-danger-hover);
+}
+
 .edit-button {
   background: transparent;
   color: var(--color-primary);
@@ -147,6 +162,7 @@ body {
 
 .primary-button:disabled,
 .secondary-button:disabled,
+.danger-button:disabled,
 .load-more-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -372,6 +388,12 @@ body {
   border-radius: var(--radius-sm);
   padding: 0.6rem 0.8rem;
   resize: vertical;
+  /* Without this, a <select> sizes to its currently-selected option's text
+     (e.g. DPYD's "Reference/Reference" vs. TPMT's "*1/*1"), stretching
+     unevenly instead of filling its label/grid cell — box-sizing keeps the
+     padding+border inside that 100%, so it can't overflow its column. */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .patient-form input:focus,
@@ -775,6 +797,113 @@ body {
   line-height: 1.4;
 }
 
+/* PGx profile form (ANE-35) */
+
+.pgx-form-panel {
+  max-width: 560px;
+}
+
+.pgx-form-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.pgx-gene-grid {
+  display: grid;
+  /* minmax(0, 1fr), not plain 1fr — grid items default to min-width: auto,
+     so a track would otherwise grow to fit its longest content (DPYD's
+     "Reference/Reference") instead of staying an equal 1fr share. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.pgx-gene-grid label {
+  min-width: 0;
+}
+
+.pgx-demo-fill-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Deliberately distinct from .primary-button/.secondary-button (dashed
+   border, muted color) — this is a dev/demo shortcut, not a clinical
+   action, and shouldn't read as visually equivalent to Save/Cancel. */
+.demo-fill-button {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-strong);
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.demo-fill-button:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+  color: var(--color-text);
+}
+
+.demo-fill-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pgx-advanced {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.9rem;
+  background: var(--color-canvas-alt);
+}
+
+.pgx-advanced summary {
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.pgx-advanced label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-top: 0.6rem;
+}
+
+.pgx-advanced textarea {
+  font: inherit;
+  font-size: 0.85rem;
+  font-family: ui-monospace, monospace;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  resize: vertical;
+}
+
+.pgx-advanced textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.pgx-advanced .pgx-form-hint {
+  margin-top: 0.5rem;
+}
+
 .condition-date,
 .medication-meta {
   color: var(--color-text-muted);
@@ -1061,6 +1190,10 @@ body {
 
 @media (max-width: 520px) {
   .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .pgx-gene-grid {
     grid-template-columns: 1fr;
   }
 

@@ -10,6 +10,7 @@ import {
   type UserRole,
 } from "./db";
 import { createPractitionerResource, setPatientGeneralPractitioner } from "./fhirServer";
+import { cascadeDeletePatient, liveFhirCascadeClient } from "./services/patientCascadeDelete";
 
 function isUserRole(value: unknown): value is UserRole {
   return value === "admin" || value === "practitioner";
@@ -128,6 +129,27 @@ export const adminRoutes = {
         }));
 
       return Response.json({ practitioners });
+    },
+  },
+
+  // ANE-?? cascade-delete admin page. Deliberately gated by the same
+  // requireRole("admin") every other /api/admin/* route already uses — the
+  // ticket for this route said not to build new auth for it, which this
+  // doesn't (nothing new here, just reusing the existing session-role
+  // check). Known gap: no audit log of who deleted what, no rate limiting,
+  // and the /admin/patients page itself is unlisted rather than actually
+  // access-controlled at the UI level — add proper admin-only routing
+  // before any real production use if this page needs to outlive the demo
+  // data cleanup it was built for.
+  "/api/admin/patients/:id": {
+    async DELETE(req: BunRequest<"/api/admin/patients/:id">) {
+      const auth = await requireRole(req, "admin");
+      if (auth instanceof Response) return auth;
+
+      const patientId = req.params.id;
+      const result = await cascadeDeletePatient(liveFhirCascadeClient, patientId);
+
+      return Response.json({ result }, { status: result.patientDeleted ? 200 : 502 });
     },
   },
 

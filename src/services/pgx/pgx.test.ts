@@ -3,7 +3,11 @@ import { loadPgxData } from "./data";
 import { resolveGene } from "./resolveGene";
 import { getRecommendation } from "./getRecommendation";
 import { getMedicationPgxFlag } from "./getMedicationPgxFlag";
-import { getPatientPgxDiplotypes } from "./patientDiplotypes";
+import { getPatientPgxDiplotypes, setPatientPgxDiplotypes } from "./patientDiplotypes";
+import { getGeneOptions } from "./geneOptions";
+import { isPlainStringRecord, validateDiplotypesAgainstOptions } from "./validateDiplotypes";
+import { DEMO_PATIENT_B_PGX_PROFILE } from "./demoProfiles";
+import { PGX_GENES } from "./types";
 import type { GeneResultsByGene, PgxData } from "./types";
 
 let data: PgxData;
@@ -191,5 +195,135 @@ describe("ANE-33: getMedicationPgxFlag (medication-driven, drives the Patient De
 
   test("getPatientPgxDiplotypes returns null when the extension is absent (most patients)", () => {
     expect(getPatientPgxDiplotypes({ resourceType: "Patient" as const })).toBeNull();
+  });
+});
+
+describe("ANE-35: setPatientPgxDiplotypes", () => {
+  test("adds the extension to a patient that has none", () => {
+    const patient = { resourceType: "Patient" as const, id: "p1" };
+    const updated = setPatientPgxDiplotypes(patient, { CYP2C19: "*1/*17" });
+
+    expect(getPatientPgxDiplotypes(updated)).toEqual({ CYP2C19: "*1/*17" });
+  });
+
+  test("overwrites an existing extension entirely rather than merging", () => {
+    const patient = {
+      resourceType: "Patient" as const,
+      id: "p1",
+      extension: [
+        {
+          url: "http://yourapp.org/fhir/StructureDefinition/pgx-diplotypes",
+          valueString: JSON.stringify({ CYP2C19: "*1/*1", CYP2D6: "*1/*1" }),
+        },
+      ],
+    };
+
+    const updated = setPatientPgxDiplotypes(patient, { TPMT: "*3A/*3A" });
+
+    expect(getPatientPgxDiplotypes(updated)).toEqual({ TPMT: "*3A/*3A" });
+  });
+
+  test("preserves other extensions on the patient untouched", () => {
+    const otherExt = { url: "http://example.org/other", valueString: "keep-me" };
+    const patient = { resourceType: "Patient" as const, id: "p1", extension: [otherExt] };
+
+    const updated = setPatientPgxDiplotypes(patient, { CYP2C19: "*1/*17" });
+
+    expect(updated.extension).toContainEqual(otherExt);
+  });
+});
+
+describe("ANE-35: getGeneOptions (dropdown source of truth)", () => {
+  test("returns distinct diplotype values per gene, matching what resolveGene accepts", () => {
+    const optionsByGene = getGeneOptions(data);
+
+    expect(Object.keys(optionsByGene).sort()).toEqual([...PGX_GENES].sort());
+    expect(optionsByGene.CYP2C19).toContain("*1/*17");
+    expect(optionsByGene.CYP2D6).toContain("*1/*4");
+
+    // Every option offered by the dropdown must actually resolve — this is
+    // the structural guarantee the ANE-35 UI depends on.
+    for (const gene of PGX_GENES) {
+      for (const diplotype of optionsByGene[gene]!.slice(0, 5)) {
+        expect(resolveGene(data, gene, diplotype).matched).toBe(true);
+      }
+    }
+  });
+
+  test("does not offer the reversed allele order as a separate option (dev notes §5 quirk)", () => {
+    const optionsByGene = getGeneOptions(data);
+    // The table's canonical order is "*1/*4", never "*4/*1" — confirm the
+    // dropdown mirrors the table's canonical strings rather than adding both.
+    expect(optionsByGene.CYP2D6).toContain("*1/*4");
+    expect(optionsByGene.CYP2D6).not.toContain("*4/*1");
+  });
+});
+
+describe("ANE-35: validateDiplotypesAgainstOptions (advanced JSON path)", () => {
+  let optionsByGene: Record<string, string[]>;
+
+  beforeAll(() => {
+    optionsByGene = getGeneOptions(data);
+  });
+
+  test("passes when every gene/diplotype pair is a real dropdown option", () => {
+    const errors = validateDiplotypesAgainstOptions(optionsByGene, {
+      CYP2C19: "*1/*17",
+      CYP2D6: "*1/*4",
+    });
+    expect(errors).toEqual([]);
+  });
+
+  test("flags an unknown gene name", () => {
+    const errors = validateDiplotypesAgainstOptions(optionsByGene, { NOTAGENE: "*1/*1" });
+    expect(errors).toEqual([{ gene: "NOTAGENE", diplotype: "*1/*1", reason: "unknown_gene" }]);
+  });
+
+  test("flags a diplotype not in the table for that gene", () => {
+    const errors = validateDiplotypesAgainstOptions(optionsByGene, { CYP2C19: "*99/*99" });
+    expect(errors).toEqual([{ gene: "CYP2C19", diplotype: "*99/*99", reason: "unknown_diplotype" }]);
+  });
+
+  test("flags a diplotype given in the wrong allele order relative to the table's canonical string", () => {
+    // *4/*1 resolves via resolveGene's reversed-lookup fallback, but the
+    // dropdown/advanced-path options are the table's exact canonical
+    // strings only ("*1/*4") — the UI must not offer or accept the reversed
+    // form, even though the matcher would tolerate it.
+    const errors = validateDiplotypesAgainstOptions(optionsByGene, { CYP2D6: "*4/*1" });
+    expect(errors).toEqual([{ gene: "CYP2D6", diplotype: "*4/*1", reason: "unknown_diplotype" }]);
+  });
+
+  test("isPlainStringRecord rejects arrays and non-string values", () => {
+    expect(isPlainStringRecord({ CYP2C19: "*1/*17" })).toBe(true);
+    expect(isPlainStringRecord([])).toBe(false);
+    expect(isPlainStringRecord({ CYP2C19: 123 })).toBe(false);
+    expect(isPlainStringRecord(null)).toBe(false);
+  });
+});
+
+describe("ANE-36: DEMO_PATIENT_B_PGX_PROFILE (shared by seed script + Load Demo Data button)", () => {
+  test("matches dev notes §4 Patient B exactly: all 6 genes, every value resolves", () => {
+    expect(Object.keys(DEMO_PATIENT_B_PGX_PROFILE).sort()).toEqual([...PGX_GENES].sort());
+
+    for (const [gene, diplotype] of Object.entries(DEMO_PATIENT_B_PGX_PROFILE)) {
+      expect(resolveGene(data, gene, diplotype).matched).toBe(true);
+    }
+  });
+
+  test("CYP2C19 *2/*2 resolves to Poor Metabolizer (the clopidogrel-flag diplotype)", () => {
+    const result = resolveGene(data, "CYP2C19", DEMO_PATIENT_B_PGX_PROFILE.CYP2C19!);
+    expect(result).toMatchObject({ matched: true, phenotype: "Poor Metabolizer" });
+  });
+
+  test("SLCO1B1 *5/*5 resolves to Poor Function (the simvastatin-flag diplotype)", () => {
+    const result = resolveGene(data, "SLCO1B1", DEMO_PATIENT_B_PGX_PROFILE.SLCO1B1!);
+    expect(result).toMatchObject({ matched: true, phenotype: "Poor Function" });
+  });
+
+  test("every value is also a real dropdown option (ANE-35 getGeneOptions), not just matcher-resolvable", () => {
+    const optionsByGene = getGeneOptions(data);
+    for (const [gene, diplotype] of Object.entries(DEMO_PATIENT_B_PGX_PROFILE)) {
+      expect(optionsByGene[gene]).toContain(diplotype);
+    }
   });
 });

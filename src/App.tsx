@@ -3,6 +3,7 @@ import { PatientDetail } from "./PatientDetail";
 import { PatientList } from "./PatientList";
 import { LoginPage } from "./LoginPage";
 import { AdminPanel } from "./AdminPanel";
+import { AdminPatientDelete } from "./AdminPatientDelete";
 import { AppointmentsCalendar } from "./AppointmentsCalendar";
 import { ChangePasswordModal } from "./ChangePasswordModal";
 import { fetchCurrentUser, logout as logoutRequest, type PublicUser } from "./authClient";
@@ -55,6 +56,13 @@ export function App() {
 
   const patientId = parsePatientId(pathname);
   const isAppointmentsView = pathname === "/appointments";
+  // Deliberately not in the normal nav or AdminPanel's tabs — reachable only
+  // by navigating here directly. Checked ahead of the role branch below so
+  // it doesn't get swallowed by the "admin users always see AdminPanel"
+  // behavior. The destructive DELETE it calls is still gated server-side by
+  // the existing admin-role session check (see adminRoutes.ts) — this route
+  // isn't an auth bypass, just an unlisted page.
+  const isAdminPatientDeleteView = pathname === "/admin/patients";
 
   return (
     <main className="app">
@@ -96,7 +104,9 @@ export function App() {
         <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
       )}
 
-      {user.role === "admin" ? (
+      {isAdminPatientDeleteView ? (
+        <AdminPatientDelete />
+      ) : user.role === "admin" ? (
         <AdminPanel />
       ) : !user.fhir_practitioner_id ? (
         <p className="patient-list-error">

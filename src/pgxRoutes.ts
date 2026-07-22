@@ -2,6 +2,7 @@ import type { BunRequest } from "bun";
 import { requireAuth } from "./auth";
 import { loadPgxData } from "./services/pgx/data";
 import { getMedicationPgxFlag } from "./services/pgx/getMedicationPgxFlag";
+import { getGeneOptions } from "./services/pgx/geneOptions";
 
 type MedicationInput = { id: string; text: string };
 
@@ -21,6 +22,20 @@ function isMedicationInput(value: unknown): value is MedicationInput {
 // the client from the existing Patient/MedicationRequest fetch) rather than
 // having the server refetch FHIR data it doesn't need to.
 export const pgxRoutes = {
+  // ANE-35: backs the "Add/Edit PGx Profile" form's per-gene dropdowns (and
+  // the advanced JSON path's validation) with the exact distinct diplotype
+  // values demo_diplotype_to_phenotype.csv has for each of the 6 genes —
+  // same loadPgxData() the matcher itself uses, so the two can never drift.
+  "/api/pgx/gene-options": {
+    async GET(req: BunRequest) {
+      const auth = await requireAuth(req);
+      if (auth instanceof Response) return auth;
+
+      const data = await loadPgxData();
+      return Response.json({ optionsByGene: getGeneOptions(data) });
+    },
+  },
+
   "/api/pgx/interactions": {
     async POST(req: BunRequest) {
       const auth = await requireAuth(req);

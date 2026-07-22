@@ -21,6 +21,7 @@ import { fhirFetch } from "../src/fhirServer";
 import { extractFhirError } from "../src/fhirError";
 import { loadPgxData } from "../src/services/pgx/data";
 import { resolveGene } from "../src/services/pgx/resolveGene";
+import { DEMO_PATIENT_B_PGX_PROFILE } from "../src/services/pgx/demoProfiles";
 
 const PGX_EXTENSION_URL = "http://yourapp.org/fhir/StructureDefinition/pgx-diplotypes";
 
@@ -56,14 +57,8 @@ const DEMO_PATIENTS: DemoPatientSpec[] = [
     family: "Patient B - Cardiac Risk",
     gender: "male",
     birthDate: "1962-09-03",
-    pgxResults: {
-      CYP2C19: "*2/*2",
-      CYP2D6: "*1/*1",
-      SLCO1B1: "*5/*5",
-      TPMT: "*1/*1",
-      NUDT15: "*1/*1",
-      DPYD: "Reference/Reference",
-    },
+    // Shared with the ANE-36 "Load Demo Data" button — see demoProfiles.ts.
+    pgxResults: DEMO_PATIENT_B_PGX_PROFILE,
   },
   {
     label: "Demo Patient C - Thiopurine + Opioid Risk",

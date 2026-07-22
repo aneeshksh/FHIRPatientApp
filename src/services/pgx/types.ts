@@ -13,6 +13,12 @@ export const GENE_LOOKUP_METHOD: Record<string, LookupMethod> = {
   DPYD: "ACTIVITY_SCORE",
 };
 
+// Canonical ordered gene list for the ANE-35 profile UI (dropdowns, JSON
+// advanced-path gene-name validation). Ordered per the ticket's spec, not
+// GENE_LOOKUP_METHOD's insertion order.
+export const PGX_GENES = ["CYP2C19", "CYP2D6", "SLCO1B1", "TPMT", "NUDT15", "DPYD"] as const;
+export type PgxGene = (typeof PGX_GENES)[number];
+
 export type DiplotypeRow = {
   genesymbol: string;
   diplotype: string;

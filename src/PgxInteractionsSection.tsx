@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
 import type { Patient } from "fhir/r4";
-// Direct file import, not the src/services/pgx barrel — the barrel also
+// Direct file imports, not the src/services/pgx barrel — the barrel also
 // re-exports loadPgxData, which reads CSVs via Bun.file and has no business
-// being pulled into the browser bundle. This file is pure JSON parsing, so
-// it's safe to import directly into a browser-bundled component.
+// being pulled into the browser bundle. These files are pure JSON parsing /
+// fetch-based, so they're safe to import directly into a browser-bundled
+// component.
 import { getPatientPgxDiplotypes } from "./services/pgx/patientDiplotypes";
+import { savePgxProfile } from "./services/pgx/savePgxProfile";
 import { fetchPgxInteractions, type MedicationPgxFlag } from "./pgxClient";
 import { getMedicationDisplay, type Medication, type MedicationRequest } from "./fhirClinical";
+import { PgxProfileForm } from "./PgxProfileForm";
 
 type PgxInteractionsSectionProps = {
   patient: Patient;
   medicationRequests: MedicationRequest[];
   medicationsById: Map<string, Medication>;
+  onPatientUpdated: (patient: Patient) => void;
 };
 
 const CLASSIFICATION_BADGE_CLASS: Record<string, string> = {
@@ -24,6 +28,7 @@ export function PgxInteractionsSection({
   patient,
   medicationRequests,
   medicationsById,
+  onPatientUpdated,
 }: PgxInteractionsSectionProps) {
   const diplotypes = getPatientPgxDiplotypes(patient);
 
@@ -36,6 +41,10 @@ export function PgxInteractionsSection({
 
   const [flags, setFlags] = useState<MedicationPgxFlag[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!diplotypes || activeMedications.length === 0) {
@@ -65,42 +74,86 @@ export function PgxInteractionsSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on medicationsKey, not object identity
   }, [diplotypes, medicationsKey, medicationsById]);
 
-  // Requirement: absent extension -> no panel at all, not even an empty
-  // state. Most patients won't have it (only the ANE-31 demo patients do).
-  if (!diplotypes) return null;
+  const closeForm = () => {
+    if (saving) return;
+    setShowForm(false);
+    setFormError(null);
+  };
+
+  // On success, hand the updated Patient back up to PatientDetail so its
+  // `patient` state (and therefore this component's `diplotypes`/effect
+  // above) refreshes immediately — no separate page reload needed to see
+  // newly-flagged medications.
+  const handleSave = async (newDiplotypes: Record<string, string>) => {
+    setSaving(true);
+    setFormError(null);
+    try {
+      const updated = await savePgxProfile(patient, newDiplotypes);
+      onPatientUpdated(updated);
+      setShowForm(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to save PGx profile");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <section className="detail-section">
       <div className="detail-section-header">
         <h2>PGx Interactions</h2>
+        <button type="button" className="primary-button" onClick={() => setShowForm(true)}>
+          {diplotypes ? "Edit PGx profile" : "Add PGx profile"}
+        </button>
       </div>
 
-      <p className="pgx-disclaimer">
-        <span aria-hidden="true">ⓘ</span> Demo scope: CPIC guidance only (not DPWG or FDA
-        labeling), covering 6 genes. Diplotypes shown are pre-assigned demo data, not derived
-        from variant calling.
-      </p>
-
-      {error ? (
-        <p className="patient-list-error">{error}</p>
-      ) : flags.length === 0 ? (
-        <p className="patient-list-status">No PGx interactions flagged for current medications.</p>
+      {!diplotypes ? (
+        <p className="patient-list-status">
+          No PGx profile on file for this patient. Add one to enable interaction checks against
+          current medications.
+        </p>
       ) : (
-        <ul className="pgx-flag-list">
-          {flags.map(flag => (
-            <li key={flag.medicationId} className="pgx-flag-item">
-              <div className="pgx-flag-header">
-                <span className="pgx-flag-drug">{flag.drug}</span>
-                <span
-                  className={`status-badge ${CLASSIFICATION_BADGE_CLASS[flag.classification] ?? "status-unknown"}`}
-                >
-                  {flag.classification}
-                </span>
-              </div>
-              <p className="pgx-flag-text">{flag.recommendationText}</p>
-            </li>
-          ))}
-        </ul>
+        <>
+          <p className="pgx-disclaimer">
+            <span aria-hidden="true">ⓘ</span> Demo scope: CPIC guidance only (not DPWG or FDA
+            labeling), covering 6 genes. Diplotypes shown are pre-assigned demo data, not derived
+            from variant calling.
+          </p>
+
+          {error ? (
+            <p className="patient-list-error">{error}</p>
+          ) : flags.length === 0 ? (
+            <p className="patient-list-status">
+              No PGx interactions flagged for current medications.
+            </p>
+          ) : (
+            <ul className="pgx-flag-list">
+              {flags.map(flag => (
+                <li key={flag.medicationId} className="pgx-flag-item">
+                  <div className="pgx-flag-header">
+                    <span className="pgx-flag-drug">{flag.drug}</span>
+                    <span
+                      className={`status-badge ${CLASSIFICATION_BADGE_CLASS[flag.classification] ?? "status-unknown"}`}
+                    >
+                      {flag.classification}
+                    </span>
+                  </div>
+                  <p className="pgx-flag-text">{flag.recommendationText}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+
+      {showForm && (
+        <PgxProfileForm
+          patient={patient}
+          onSubmit={handleSave}
+          onCancel={closeForm}
+          saving={saving}
+          error={formError}
+        />
       )}
     </section>
   );

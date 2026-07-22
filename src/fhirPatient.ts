@@ -179,16 +179,7 @@ export async function listPatientsForPractitioner(
   return bundle.entry?.flatMap(e => (e.resource ? [e.resource] : [])) ?? [];
 }
 
-export async function savePatient(
-  values: PatientFormValues,
-  existing?: Patient,
-  generalPractitionerId?: string,
-): Promise<Patient> {
-  const resource = formValuesToPatient(values, existing, generalPractitionerId);
-  const isCreate = !existing?.id;
-  const url = isCreate ? "/fhir/Patient" : `/fhir/Patient/${existing.id}`;
-  const method = isCreate ? "POST" : "PUT";
-
+async function sendPatient(url: string, method: "POST" | "PUT", resource: Patient): Promise<Patient> {
   const res = await fetch(url, {
     method,
     headers: { "Content-Type": "application/fhir+json" },
@@ -203,4 +194,26 @@ export async function savePatient(
   }
 
   return res.json();
+}
+
+export async function savePatient(
+  values: PatientFormValues,
+  existing?: Patient,
+  generalPractitionerId?: string,
+): Promise<Patient> {
+  const resource = formValuesToPatient(values, existing, generalPractitionerId);
+  const isCreate = !existing?.id;
+  const url = isCreate ? "/fhir/Patient" : `/fhir/Patient/${existing.id}`;
+  return sendPatient(url, isCreate ? "POST" : "PUT", resource);
+}
+
+// Reused by non-demographics flows that need to PUT a full Patient resource
+// with only a specific field changed (e.g. the ANE-35 PGx profile form
+// updating just the extension array) — shares the same PUT + OperationOutcome
+// error handling as savePatient's update path rather than duplicating it.
+export async function updatePatientResource(patient: Patient): Promise<Patient> {
+  if (!patient.id) {
+    throw new Error("Cannot update a patient without an id");
+  }
+  return sendPatient(`/fhir/Patient/${patient.id}`, "PUT", patient);
 }

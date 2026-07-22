@@ -214,6 +214,7 @@ export function PatientDetail({ patientId, practitionerId, onBack }: PatientDeta
         patient={patient}
         medicationRequests={medicationRequests}
         medicationsById={medicationsById}
+        onPatientUpdated={setPatient}
       />
       <AppointmentsSection appointments={appointments} />
       <EncountersSection encounters={encounters} />
