@@ -94,6 +94,24 @@ export async function cascadeDeletePatient(
   return { patientId, deletedCounts, patientDeleted: true };
 }
 
+// Read-only dry run for the admin UI's pre-delete confirmation modal —
+// counts what WOULD be deleted without deleting anything, via the exact
+// same per-type search cascadeDeletePatient itself uses (same
+// FhirCascadeClient, same searchIds), so the preview can never show a
+// different set of resources than the ones the real delete acts on
+// moments later.
+export async function previewCascadeDelete(
+  client: FhirCascadeClient,
+  patientId: string,
+): Promise<Record<CascadeResourceType, number>> {
+  const counts = {} as Record<CascadeResourceType, number>;
+  for (const resourceType of CASCADE_RESOURCE_TYPES) {
+    const ids = await client.searchIds(resourceType, patientId);
+    counts[resourceType] = ids.length;
+  }
+  return counts;
+}
+
 // Real client — direct (non-proxied) calls to the live FHIR server, same
 // pattern fhirServer.ts already uses for other server-initiated writes
 // (createPractitionerResource, setPatientGeneralPractitioner), not the

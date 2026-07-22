@@ -103,6 +103,7 @@ body {
 .primary-button,
 .secondary-button,
 .danger-button,
+.warning-button,
 .edit-button,
 .load-more-button {
   border: 0;
@@ -148,6 +149,18 @@ body {
   background: var(--color-danger-hover);
 }
 
+/* Deliberately amber/warning, not the red .danger-button used for
+   per-patient delete — this affects 3 specific known patients at once, not
+   whichever row was clicked, and shouldn't read as the same kind of action. */
+.warning-button {
+  background: var(--color-warning);
+  color: #fff;
+}
+
+.warning-button:hover:not(:disabled) {
+  background: #92400e;
+}
+
 .edit-button {
   background: transparent;
   color: var(--color-primary);
@@ -163,6 +176,7 @@ body {
 .primary-button:disabled,
 .secondary-button:disabled,
 .danger-button:disabled,
+.warning-button:disabled,
 .load-more-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -919,6 +933,70 @@ body {
   border-radius: var(--radius-pill);
 }
 
+.practitioner-assignment-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Visually distinct from per-patient row actions (different section,
+   amber accent instead of the table's neutral surface) since this affects
+   3 specific known patients at once, not the one being clicked. */
+.demo-reset-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  background: var(--color-warning-soft);
+  border: 1px solid rgba(180, 83, 9, 0.25);
+  border-radius: var(--radius-md);
+}
+
+.demo-reset-panel h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-warning);
+}
+
+.demo-reset-panel p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  max-width: 48ch;
+}
+
+.reset-summary {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.reset-summary p {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.reset-summary ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.reset-summary-success {
+  background: var(--color-primary-soft);
+}
+
+.reset-summary-failure {
+  background: var(--color-warning-soft);
+}
+
 .status-active {
   background: var(--color-primary-soft);
   color: var(--color-primary-soft-text);
@@ -1195,6 +1273,11 @@ body {
 
   .pgx-gene-grid {
     grid-template-columns: 1fr;
+  }
+
+  .demo-reset-panel {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .patient-list-header {

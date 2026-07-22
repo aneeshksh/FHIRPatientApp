@@ -16,80 +16,29 @@
 // `fhirFetch` plus the Patient shape below is the closest actual existing
 // pattern, so that's what this reuses. Flagging the mismatch rather than
 // fabricating either missing file.
+//
+// The patient specs (names, diplotypes) live in src/services/demoPatients.ts
+// — shared with the admin panel's "Reset Demo Data" button, so this script
+// and that button can never drift apart on what "Demo Patient A/B/C" means.
 import type { Patient } from "fhir/r4";
 import { fhirFetch } from "../src/fhirServer";
 import { extractFhirError } from "../src/fhirError";
 import { loadPgxData } from "../src/services/pgx/data";
 import { resolveGene } from "../src/services/pgx/resolveGene";
-import { DEMO_PATIENT_B_PGX_PROFILE } from "../src/services/pgx/demoProfiles";
-
-const PGX_EXTENSION_URL = "http://yourapp.org/fhir/StructureDefinition/pgx-diplotypes";
-
-type DemoPatientSpec = {
-  label: string;
-  given: string[];
-  family: string;
-  gender: NonNullable<Patient["gender"]>;
-  birthDate: string;
-  pgxResults: Record<string, string>;
-};
-
-// Diplotype values are exactly dev notes §4's table for patients A/B/C.
-const DEMO_PATIENTS: DemoPatientSpec[] = [
-  {
-    label: "Demo Patient A - Normal",
-    given: ["Demo"],
-    family: "Patient A - Normal",
-    gender: "female",
-    birthDate: "1985-04-12",
-    pgxResults: {
-      CYP2C19: "*1/*1",
-      CYP2D6: "*1/*1",
-      SLCO1B1: "*1/*1",
-      TPMT: "*1/*1",
-      NUDT15: "*1/*1",
-      DPYD: "Reference/Reference",
-    },
-  },
-  {
-    label: "Demo Patient B - Cardiac Risk",
-    given: ["Demo"],
-    family: "Patient B - Cardiac Risk",
-    gender: "male",
-    birthDate: "1962-09-03",
-    // Shared with the ANE-36 "Load Demo Data" button — see demoProfiles.ts.
-    pgxResults: DEMO_PATIENT_B_PGX_PROFILE,
-  },
-  {
-    label: "Demo Patient C - Thiopurine + Opioid Risk",
-    given: ["Demo"],
-    family: "Patient C - Thiopurine + Opioid Risk",
-    gender: "male",
-    birthDate: "1990-01-20",
-    pgxResults: {
-      CYP2C19: "*1/*1",
-      CYP2D6: "*4/*4",
-      SLCO1B1: "*1/*1",
-      TPMT: "*3A/*3A",
-      NUDT15: "*1/*1",
-      DPYD: "Reference/Reference",
-    },
-  },
-];
+import {
+  PGX_DIPLOTYPES_EXTENSION_URL,
+  setPatientPgxDiplotypes,
+} from "../src/services/pgx/patientDiplotypes";
+import { DEMO_PATIENT_SPECS, type DemoPatientSpec } from "../src/services/demoPatients";
 
 function buildPatientResource(spec: DemoPatientSpec): Patient {
-  return {
+  const bare: Patient = {
     resourceType: "Patient",
     name: [{ use: "official", given: spec.given, family: spec.family }],
     gender: spec.gender,
     birthDate: spec.birthDate,
-    extension: [
-      {
-        url: PGX_EXTENSION_URL,
-        valueString: JSON.stringify(spec.pgxResults),
-      },
-    ],
   };
+  return setPatientPgxDiplotypes(bare, spec.pgxResults);
 }
 
 function sameDiplotypeSet(a: Record<string, string>, b: Record<string, string>): boolean {
@@ -147,7 +96,7 @@ async function createAndVerify(spec: DemoPatientSpec): Promise<{ label: string; 
   }
 
   const fetched: Patient = await getRes.json();
-  const pgxExtension = fetched.extension?.find(ext => ext.url === PGX_EXTENSION_URL);
+  const pgxExtension = fetched.extension?.find(ext => ext.url === PGX_DIPLOTYPES_EXTENSION_URL);
 
   if (!pgxExtension?.valueString) {
     throw new Error(
@@ -174,7 +123,7 @@ async function main() {
   const results: { label: string; id: string }[] = [];
   const failures: string[] = [];
 
-  for (const spec of DEMO_PATIENTS) {
+  for (const spec of DEMO_PATIENT_SPECS) {
     try {
       results.push(await createAndVerify(spec));
     } catch (err) {
@@ -190,7 +139,9 @@ async function main() {
   }
 
   if (failures.length > 0) {
-    console.error(`\n${failures.length} of ${DEMO_PATIENTS.length} patient(s) failed: ${failures.join(", ")}`);
+    console.error(
+      `\n${failures.length} of ${DEMO_PATIENT_SPECS.length} patient(s) failed: ${failures.join(", ")}`,
+    );
     process.exit(1);
   }
 }

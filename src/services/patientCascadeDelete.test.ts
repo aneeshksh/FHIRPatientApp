@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   cascadeDeletePatient,
+  previewCascadeDelete,
   type CascadeResourceType,
   type FhirCascadeClient,
 } from "./patientCascadeDelete";
@@ -130,5 +131,28 @@ describe("cascadeDeletePatient — stops on failure, doesn't continue past it", 
       message: "delete failed for Patient/patient-5",
     });
     expect(deleted).toEqual([{ resourceType: "Observation", id: "obs-1" }]);
+  });
+});
+
+describe("previewCascadeDelete — read-only dry run for the admin confirmation modal", () => {
+  test("reports counts per resource type without deleting anything", async () => {
+    const { client, deleted } = makeFakeClient({
+      idsByType: {
+        Observation: ["obs-1", "obs-2"],
+        Condition: ["cond-1"],
+        MedicationRequest: [],
+      },
+    });
+
+    const counts = await previewCascadeDelete(client, "patient-6");
+
+    expect(counts).toEqual({ Observation: 2, Condition: 1, MedicationRequest: 0 });
+    expect(deleted).toEqual([]); // never calls deleteResource
+  });
+
+  test("a patient with nothing referencing it previews as all zeros", async () => {
+    const { client } = makeFakeClient({});
+    const counts = await previewCascadeDelete(client, "patient-7");
+    expect(counts).toEqual({ Observation: 0, Condition: 0, MedicationRequest: 0 });
   });
 });

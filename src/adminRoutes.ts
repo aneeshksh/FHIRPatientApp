@@ -9,8 +9,17 @@ import {
   toPublicUser,
   type UserRole,
 } from "./db";
-import { createPractitionerResource, setPatientGeneralPractitioner } from "./fhirServer";
-import { cascadeDeletePatient, liveFhirCascadeClient } from "./services/patientCascadeDelete";
+import {
+  clearPatientGeneralPractitioner,
+  findOrCreatePractitionerResource,
+  setPatientGeneralPractitioner,
+} from "./fhirServer";
+import {
+  cascadeDeletePatient,
+  liveFhirCascadeClient,
+  previewCascadeDelete,
+} from "./services/patientCascadeDelete";
+import { liveDemoPatientResetClient, resetDemoData } from "./services/demoPatients";
 
 function isUserRole(value: unknown): value is UserRole {
   return value === "admin" || value === "practitioner";
@@ -58,7 +67,11 @@ export const adminRoutes = {
       let fhirPractitionerId: string | null = null;
       if (role === "practitioner") {
         try {
-          const practitioner = await createPractitionerResource(fullName);
+          // Reuses an existing Practitioner tagged with this username
+          // (findPractitionerByUsername, keyed off the local-username
+          // identifier) instead of always creating a new one — see
+          // fhirServer.ts for why name-matching alone isn't reliable here.
+          const practitioner = await findOrCreatePractitionerResource(username, fullName);
           if (!practitioner.id) {
             throw new Error("FHIR server did not return a practitioner id");
           }
@@ -132,15 +145,32 @@ export const adminRoutes = {
     },
   },
 
-  // ANE-?? cascade-delete admin page. Deliberately gated by the same
-  // requireRole("admin") every other /api/admin/* route already uses — the
-  // ticket for this route said not to build new auth for it, which this
-  // doesn't (nothing new here, just reusing the existing session-role
-  // check). Known gap: no audit log of who deleted what, no rate limiting,
-  // and the /admin/patients page itself is unlisted rather than actually
-  // access-controlled at the UI level — add proper admin-only routing
-  // before any real production use if this page needs to outlive the demo
-  // data cleanup it was built for.
+  // Cascade delete, surfaced in AdminPatients.tsx (the existing admin
+  // "Patients" tab) alongside practitioner reassignment — not a separate
+  // page. Gated by the same requireRole("admin") every other
+  // /api/admin/* route here uses. Known gap: no audit log of who deleted
+  // what — add one before any real production use.
+  "/api/admin/patients/:id/cascade-preview": {
+    // Read-only — reports what a delete WOULD remove (per-type counts),
+    // for the admin confirmation modal to show before committing. Never
+    // deletes anything itself.
+    async GET(req: BunRequest<"/api/admin/patients/:id/cascade-preview">) {
+      const auth = await requireRole(req, "admin");
+      if (auth instanceof Response) return auth;
+
+      const patientId = req.params.id;
+      try {
+        const counts = await previewCascadeDelete(liveFhirCascadeClient, patientId);
+        return Response.json({ counts });
+      } catch (err) {
+        return Response.json(
+          { error: err instanceof Error ? err.message : "Failed to preview delete" },
+          { status: 502 },
+        );
+      }
+    },
+  },
+
   "/api/admin/patients/:id": {
     async DELETE(req: BunRequest<"/api/admin/patients/:id">) {
       const auth = await requireRole(req, "admin");
@@ -153,22 +183,57 @@ export const adminRoutes = {
     },
   },
 
+  // Resets Demo Patients A/B/C (docs/pgx_demo_dev_notes.md §4) to a known-
+  // clean state for pre-demo prep — surfaced as the "Reset Demo Data"
+  // button in AdminPatients.tsx, not a CLI script. Assigns the 3 recreated
+  // patients to whichever Practitioner the CURRENT admin session is linked
+  // to (usually none — admin accounts don't carry a fhir_practitioner_id,
+  // see db.ts — in which case they're left unassigned), same as any other
+  // patient-create path (fhirPatient.ts's formValuesToPatient).
+  "/api/admin/reset-demo-data": {
+    async POST(req: BunRequest) {
+      const auth = await requireRole(req, "admin");
+      if (auth instanceof Response) return auth;
+
+      const result = await resetDemoData(liveDemoPatientResetClient, auth.fhir_practitioner_id);
+      return Response.json({ result }, { status: result.allSucceeded ? 200 : 502 });
+    },
+  },
+
   "/api/admin/patients/:id/practitioner": {
+    // practitionerId is either a non-empty string (assign) or explicitly
+    // `null` (unassign — clears generalPractitioner entirely rather than
+    // leaving it pointing at a stale/orphaned Practitioner reference).
+    // Missing the field, or any other shape, is a 400 — `null` must be
+    // sent on purpose, not just implied by omission.
     async PATCH(req: BunRequest<"/api/admin/patients/:id/practitioner">) {
       const auth = await requireRole(req, "admin");
       if (auth instanceof Response) return auth;
 
       const patientId = req.params.id;
       const body = await req.json().catch(() => null);
-      const practitionerId =
-        typeof body?.practitionerId === "string" ? body.practitionerId : "";
 
-      if (!practitionerId) {
-        return Response.json({ error: "practitionerId is required" }, { status: 400 });
+      if (!body || !("practitionerId" in body)) {
+        return Response.json(
+          { error: "practitionerId is required (a non-empty string id, or null to unassign)" },
+          { status: 400 },
+        );
+      }
+
+      const { practitionerId } = body;
+
+      if (practitionerId !== null && (typeof practitionerId !== "string" || !practitionerId)) {
+        return Response.json(
+          { error: "practitionerId must be a non-empty string id, or null to unassign" },
+          { status: 400 },
+        );
       }
 
       try {
-        const patient = await setPatientGeneralPractitioner(patientId, practitionerId);
+        const patient =
+          practitionerId === null
+            ? await clearPatientGeneralPractitioner(patientId)
+            : await setPatientGeneralPractitioner(patientId, practitionerId);
         return Response.json({ patient });
       } catch (err) {
         return Response.json(
